@@ -1,0 +1,13 @@
+# Credenciales y entorno
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+
+# Datos regenerables (se generan con src/make_synthetic_data.py)
+data/
+output/
