@@ -65,7 +65,7 @@ plt.rcParams.update({
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes"]
 DIAS_LBL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
-SLOTS = ["06:30", "11:00", "17:00", "19:00", "21:00"]
+SLOTS = ["09:00", "12:00", "15:00", "18:00", "21:00"]
 
 # Código ISO → nombre completo de país (es).
 PAIS_NOMBRE = {
@@ -101,8 +101,8 @@ def _source(fig, x, y, texto):
 
 
 def _tz_tag(fig, x=0.92, y=0.06):
-    """Etiqueta fija: todos los gráficos usan hora de México."""
-    fig.text(x, y, "Horarios en hora de México (UTC-6)", fontsize=9,
+    """Etiqueta fija: todos los gráficos usan hora de Chile."""
+    fig.text(x, y, "Horarios en hora de Chile (UTC-3)", fontsize=9,
              family=COND, color=SRC, va="bottom", ha="right")
 
 
@@ -160,7 +160,7 @@ def heatmap_page(pdf, piv, titulo, subtitulo, fuente, cmap, fmt="{:.0f}",
 
 
 def barh_page(pdf, labels, values, titulo, subtitulo, fuente, lead=None,
-              cuerpo=None, color=BLUE, fmt="{:.0f}"):
+              cuerpo=None, color=BLUE, fmt="{:.0f}", ref=None, ref_label=None):
     fig = plt.figure(figsize=(8.5, 11))
     fig.patch.set_facecolor("white")
     _econ_header(fig, 0.08, 0.93, titulo, subtitulo)
@@ -176,6 +176,12 @@ def barh_page(pdf, labels, values, titulo, subtitulo, fuente, lead=None,
     ax.spines["bottom"].set_color(BLACK)
     ax.xaxis.grid(True, color=GREY_LT, linewidth=0.5, zorder=0)
     ax.set_axisbelow(True)
+    # línea de referencia opcional (p. ej. índice = 1.00)
+    if ref is not None:
+        ax.axvline(ref, color=ECON_RED, lw=1.2, ls=(0, (4, 2)), zorder=4)
+        if ref_label:
+            ax.text(ref, len(labels) - 0.3, f"  {ref_label}", color=ECON_RED,
+                    fontsize=10, va="bottom", family=COND)
     # etiqueta de valor al final de cada barra
     for yi, v in zip(y, values):
         ax.text(v + max(values) * 0.01, yi, fmt.format(v), va="center",
@@ -183,101 +189,6 @@ def barh_page(pdf, labels, values, titulo, subtitulo, fuente, lead=None,
 
     if lead or cuerpo:
         _texto_interpreta(fig, 0.08, 0.225, lead or "", cuerpo or "")
-    _source(fig, 0.08, 0.06, fuente)
-    _tz_tag(fig)
-    pdf.savefig(fig)
-    plt.close(fig)
-
-
-def split_page(pdf, rows, titulo, subtitulo, fuente, lead, cuerpo, viable=12):
-    """rows: lista de (etiqueta, basico, avanzado). Barra apilada con el
-    tamaño REAL de cada grupo por nivel + línea de tamaño mínimo viable."""
-    fig = plt.figure(figsize=(8.5, 11))
-    fig.patch.set_facecolor("white")
-    _econ_header(fig, 0.08, 0.93, titulo, subtitulo)
-
-    ax = fig.add_axes([0.30, 0.34, 0.60, 0.38])
-    y = np.arange(len(rows))[::-1]
-    maxv = max(b + a for _, b, a in rows)
-    for yi, (lab, bas, av) in zip(y, rows):
-        ax.barh(yi, bas, color=BLUE, height=0.62, zorder=3)
-        ax.barh(yi, av, left=bas, color=TEAL, height=0.62, zorder=3)
-        ax.text(bas / 2, yi, f"{bas:.0f}", ha="center", va="center",
-                color="white", fontsize=11.5, fontweight="bold", zorder=5)
-        # etiqueta del avanzado: dentro si cabe, si no afuera
-        if av >= maxv * 0.10:
-            ax.text(bas + av / 2, yi, f"{av:.0f}", ha="center", va="center",
-                    color="white", fontsize=11.5, fontweight="bold", zorder=5)
-        else:
-            ax.text(bas + av + maxv * 0.012, yi, f"{av:.0f}", ha="left",
-                    va="center", color=TEAL, fontsize=11, fontweight="bold", zorder=5)
-    ax.set_yticks(y)
-    ax.set_yticklabels([r[0] for r in rows], fontsize=12)
-    ax.tick_params(length=0)
-    for s in ["top", "right", "left", "bottom"]:
-        ax.spines[s].set_visible(False)
-    ax.set_xticks([])
-    ax.set_xlim(0, maxv * 1.12)
-
-    # línea de tamaño mínimo viable por grupo
-    ax.axvline(viable, color=ECON_RED, lw=1.2, ls=(0, (4, 2)), zorder=6)
-    ax.text(viable, len(rows) - 0.35, f"  mínimo viable ({viable})",
-            color=ECON_RED, fontsize=10, va="bottom", family=COND)
-
-    # leyenda básico/avanzado
-    fig.add_artist(plt.Rectangle((0.30, 0.775), 0.022, 0.011, color=BLUE,
-                                 transform=fig.transFigure, clip_on=False))
-    fig.text(0.328, 0.781, "Básico (N1-N2)", fontsize=11, family=COND, va="center")
-    fig.add_artist(plt.Rectangle((0.50, 0.775), 0.022, 0.011, color=TEAL,
-                                 transform=fig.transFigure, clip_on=False))
-    fig.text(0.528, 0.781, "Avanzado (N3-N7, CE, CF)", fontsize=11, family=COND, va="center")
-
-    _texto_interpreta(fig, 0.08, 0.265, lead, cuerpo)
-    _source(fig, 0.08, 0.06, fuente)
-    _tz_tag(fig)
-    pdf.savefig(fig)
-    plt.close(fig)
-
-
-def grouped_barh_page(pdf, rows, series, colors, titulo, subtitulo, fuente,
-                      lead, cuerpo):
-    """rows: lista de (etiqueta, [v_serie1, v_serie2, ...]).
-    series: nombres para la leyenda. colors: un color por serie."""
-    fig = plt.figure(figsize=(8.5, 11))
-    fig.patch.set_facecolor("white")
-    _econ_header(fig, 0.08, 0.93, titulo, subtitulo)
-
-    ax = fig.add_axes([0.30, 0.32, 0.60, 0.40])
-    n = len(series)
-    h = 0.8 / n
-    base = np.arange(len(rows))[::-1]
-    maxv = max(max(v) for _, v in rows)
-    for s in range(n):
-        ys = base + (n / 2 - 0.5 - s) * h
-        vals = [r[1][s] for r in rows]
-        ax.barh(ys, vals, height=h, color=colors[s], zorder=3)
-        for yy, v in zip(ys, vals):
-            ax.text(v + maxv * 0.015, yy, f"{v:.0f}", va="center",
-                    fontsize=9.5, color=BLACK)
-    ax.set_yticks(base)
-    ax.set_yticklabels([r[0] for r in rows], fontsize=12)
-    ax.tick_params(length=0)
-    for sp in ["top", "right", "left"]:
-        ax.spines[sp].set_visible(False)
-    ax.spines["bottom"].set_color(BLACK)
-    ax.set_xlim(0, maxv * 1.12)
-    ax.xaxis.grid(True, color=GREY_LT, linewidth=0.5, zorder=0)
-    ax.set_axisbelow(True)
-
-    # leyenda
-    lx = 0.30
-    for s in range(n):
-        fig.add_artist(plt.Rectangle((lx, 0.76), 0.020, 0.010, color=colors[s],
-                                     transform=fig.transFigure, clip_on=False))
-        fig.text(lx + 0.026, 0.765, series[s], fontsize=10.5, family=COND, va="center")
-        lx += 0.026 + 0.013 * len(series[s])
-
-    _texto_interpreta(fig, 0.08, 0.25, lead, cuerpo)
     _source(fig, 0.08, 0.06, fuente)
     _tz_tag(fig)
     pdf.savefig(fig)
@@ -314,7 +225,7 @@ def cover_page(pdf, kpis, periodo, autor, abstract):
     fig.add_artist(plt.Line2D([0.08, 0.92], [0.11, 0.11], color=BLACK,
                               linewidth=0.8, transform=fig.transFigure))
     fig.text(0.08, 0.092, autor, fontsize=11.5, family=COND, color=BLACK, va="top")
-    fig.text(0.92, 0.092, "Fuente: Zoom Dashboard API · hora de México",
+    fig.text(0.92, 0.092, "Fuente: Zoom Dashboard API · hora de Chile",
              fontsize=9.5, family=COND, color=SRC, va="top", ha="right")
     pdf.savefig(fig)
     plt.close(fig)
@@ -373,8 +284,8 @@ def narrativa(resumen, paises, piv_prom, piv_tot,
         f"sesiones grupales Latam para orientar decisiones sobre su "
         f"programación. Entre enero y junio de 2026 se analizaron {m(n_ses)} "
         f"sesiones de los grupos Latam 01 a 06, contabilizando únicamente "
-        f"conexiones de lunes a viernes dentro de las cinco franjas oficiales "
-        f"(06:30, 11:00, 17:00, 19:00 y 21:00, hora de México), con {m(total)} "
+        f"conexiones de lunes a viernes dentro de las cinco franjas "
+        f"(09:00, 12:00, 15:00, 18:00 y 21:00, hora de Chile), con {m(total)} "
         f"asistencias desde {n_paises} países. La sesión de mayor convocatoria "
         f"promedio es {lbl[best_day]} a las {best_slot} h "
         f"({best_val:.0f} personas por sesión) y, en el agregado semanal, el "
@@ -426,17 +337,30 @@ def run():
     narr = narrativa(resumen, paises, piv_prom, piv_tot,
                      n_sesiones, total_personas, n_paises, n_grupos)
 
-    # Facilitadores: promedio de participantes por sesión (muestra robusta).
+    # Facilitadores (muestra robusta). Rotan mucho entre franjas, así que el
+    # promedio crudo está mezclado con el horario que les tocó; el índice
+    # ajustado normaliza cada sesión por su franja×día y aísla el desempeño.
     fac = pd.read_csv(DATA_DIR / "ranking_facilitadores.csv")
-    fac_top = fac[fac["muestra_robusta"]].sort_values("prom", ascending=False)
-    f1, fN = fac_top.iloc[0], fac_top.iloc[-1]
-    fac_cuerpo = _wrap(
-        f"Cada sesión se atribuye al facilitador que la dirigió esa semana. En "
-        f"promedio de participantes por sesión, {f1['facilitador']} encabeza con "
-        f"{f1['prom']:.0f}, frente a los {fN['prom']:.0f} de {fN['facilitador']} "
-        f"al final de la tabla: una brecha que se sostiene incluso ajustando por "
-        f"horario y día. Identificar quién convoca más permite asignar a los "
-        f"facilitadores más fuertes a las franjas de mayor potencial.")
+    fac_r = fac[fac["muestra_robusta"]]
+    fac_raw = fac_r.sort_values("prom", ascending=False)
+    fac_adj = fac_r.sort_values("indice_ajustado", ascending=False)
+    r1, rN = fac_raw.iloc[0], fac_raw.iloc[-1]
+    a1, aN = fac_adj.iloc[0], fac_adj.iloc[-1]
+    raw_cuerpo = _wrap(
+        f"Promedio de participantes por sesión de cada facilitador. {r1['facilitador']} "
+        f"encabeza con {r1['prom']:.0f} y {rN['facilitador']} cierra con {rN['prom']:.0f}. "
+        f"Pero esta cifra está confundida: como los facilitadores rotan mucho entre "
+        f"franjas y días, parte de la diferencia es el horario que les tocó, no su "
+        f"desempeño. Para compararlos de forma justa hay que normalizar (página "
+        f"siguiente).")
+    adj_cuerpo = _wrap(
+        f"Aquí cada sesión se normaliza por su promedio esperado según franja y "
+        f"día; el índice resultante aísla el desempeño propio del facilitador, "
+        f"independiente de qué sesión le tocó (1.00 = lo esperado). {a1['facilitador']} "
+        f"lidera con {a1['indice_ajustado']:.2f} —convoca {(a1['indice_ajustado']-1)*100:.0f}% "
+        f"más que el promedio de sus franjas— mientras {aN['facilitador']} queda en "
+        f"{aN['indice_ajustado']:.2f}. La rotación alta hace válida esta comparación: "
+        f"casi todos lideraron franjas variadas.")
 
     with PdfPages(REPORTS_DIR / "informe_latam.pdf") as pdf:
         cover_page(
@@ -447,7 +371,7 @@ def run():
                 (f"{n_paises}", "países conectados"),
                 (f"{n_grupos}", "grupos Latam (01–06)"),
             ],
-            periodo="Enero – junio 2026 · Lunes a viernes · hora de México",
+            periodo="Enero – junio 2026 · Lunes a viernes · hora de Chile",
             autor=AUTOR,
             abstract=narr["abstract"],
         )
@@ -474,11 +398,19 @@ def run():
             lead="Qué muestra", cuerpo=narr["paises"],
         )
         barh_page(
-            pdf, fac_top["facilitador"].tolist(), fac_top["prom"].values,
-            "¿Quién convoca más?",
+            pdf, fac_raw["facilitador"].tolist(), fac_raw["prom"].values,
+            "¿Quién convoca más? (crudo)",
             "Promedio de participantes por sesión, por facilitador (Lun-Vie)",
-            fuente, color=BLUE, fmt="{:.1f}",
-            lead="Qué muestra", cuerpo=fac_cuerpo,
+            fuente, color=GREY, fmt="{:.1f}",
+            lead="Qué muestra", cuerpo=raw_cuerpo,
+        )
+        barh_page(
+            pdf, fac_adj["facilitador"].tolist(), fac_adj["indice_ajustado"].values,
+            "Desempeño real, ajustado por sesión",
+            "Índice normalizado por franja × día · 1.00 = lo esperado (Lun-Vie)",
+            fuente, color=BLUE, fmt="{:.2f}",
+            lead="Qué muestra", cuerpo=adj_cuerpo,
+            ref=1.0, ref_label="esperado (1.00)",
         )
 
     print(f"✓ {REPORTS_DIR / 'informe_latam.pdf'} generado")

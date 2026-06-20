@@ -13,8 +13,8 @@ Salida cruda: latam_conexiones_raw.csv
 `persona` (nombre/email) se usa solo para deduplicar en el análisis; los CSV
 analíticos finales NO incluyen detalle de personas.
 
-El análisis (conteo por sesión/país, filtro de horarios México, heatmap) vive
-en analyze_latam_sessions.py y se alimenta de este CSV crudo.
+El análisis (conteo por sesión/país, filtro de horarios en hora de Chile,
+heatmap) vive en analyze_latam_sessions.py y se alimenta de este CSV crudo.
 """
 
 import csv

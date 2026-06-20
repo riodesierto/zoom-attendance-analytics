@@ -1,19 +1,19 @@
 """
-Análisis de sesiones Latam por horario (México) a partir de latam_conexiones_raw.csv.
+Análisis de sesiones Latam por horario (Chile) a partir de latam_conexiones_raw.csv.
 
 Reglas:
-- Slots oficiales (hora México, Lun-Vie), sesiones de 1 hora:
-    06:30, 11:00, 17:00, 19:00, 21:00
+- Franjas (hora de Chile, Lun-Vie), sesiones de 1 hora:
+    09:00, 12:00, 15:00, 18:00, 21:00
 - Una conexión cuenta para un slot si su hora de INGRESO (join) cae en
     [slot - MARGEN_MIN, slot + 60min]. Fuera de toda ventana → se descarta.
-- Una SESIÓN = (grupo, fecha_mx, slot). Se deduplican personas dentro de la
+- Una SESIÓN = (grupo, fecha, slot). Se deduplican personas dentro de la
     sesión (las salas se reinician varias veces al día → varios meetings).
 
 Genera:
 - latam_sesiones_por_pais.csv   : grupo, fecha, dia_semana, slot, pais, n_personas
 - latam_sesiones_resumen.csv    : grupo, fecha, dia_semana, slot, total_personas
 - latam_heatmap_promedio.csv    : matriz slot × día (promedio personas/sesión)
-- latam_heatmap.html            : mapa de calor visual
+- latam_heatmap_total.csv       : matriz slot × día (total personas)
 """
 
 import pandas as pd
@@ -22,19 +22,19 @@ from zoneinfo import ZoneInfo
 
 from paths import DATA_DIR
 
-MEXICO_TZ = ZoneInfo("America/Mexico_City")
+CHILE_TZ = ZoneInfo("America/Santiago")
 RAW = DATA_DIR / "latam_conexiones_raw.csv"
 
-SLOTS = ["06:30", "11:00", "17:00", "19:00", "21:00"]
+SLOTS = ["09:00", "12:00", "15:00", "18:00", "21:00"]
 MARGEN_MIN = 10           # tolerancia de ingreso antes del inicio
 DUR_MIN = 60              # duración de la sesión
 DOW = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
 
-def to_mx(iso):
+def to_cl(iso):
     if not isinstance(iso, str) or not iso:
         return None
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(MEXICO_TZ)
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(CHILE_TZ)
 
 
 def asignar_slot(dt) -> str:
@@ -54,7 +54,7 @@ def run():
     df = pd.read_csv(RAW)
     print(f"Conexiones crudas: {len(df)}")
 
-    dt = df["join_utc"].apply(to_mx)
+    dt = df["join_utc"].apply(to_cl)
     df["fecha_mx"] = dt.apply(lambda d: d.date().isoformat() if d else None)
     df["dow_idx"] = dt.apply(lambda d: d.weekday() if d else None)
     df["slot"] = dt.apply(asignar_slot)
